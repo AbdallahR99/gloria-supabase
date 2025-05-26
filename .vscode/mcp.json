@@ -1,0 +1,14 @@
+{
+    "servers": {
+        // https://github.com/ppl-ai/modelcontextprotocol/
+        "supabase": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@supabase/mcp-server-supabase@latest",
+                "--access-token",
+                "sbp_52b174854778535dd14baf2209021d3260bffc11"
+            ]
+        }
+    }
+}
