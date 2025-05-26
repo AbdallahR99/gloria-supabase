@@ -1,2 +1,4 @@
 angular-app
 scripts
+supabase/dump-data.sql
+storage

@@ -1,5 +1,7 @@
 // File: functions/orders/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { Hono } from 'jsr:@hono/hono';
+import { cors } from 'jsr:@hono/hono/cors';
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { handleCheckoutOrder } from "./checkout.ts";
 import { handleGetOrder, handleListOrders } from "./get.ts";
@@ -8,70 +10,113 @@ import { handleCreateOrder } from "./create.ts";
 import { handleUpdateOrder } from "./update.ts";
 import { handleDeleteOrder } from "./delete.ts";
 import { handleBulkCreateOrders, handleBulkDeleteOrders } from "./bulk.ts";
-function withCors(response) {
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Headers", "*");
-  headers.set("Access-Control-Allow-Methods", "*");
-  return new Response(response.body, {
-    status: response.status,
-    headers
-  });
-}
-Deno.serve(async (req)=>{
-  if (req.method === "OPTIONS") {
-    return withCors(new Response("ok"));
-  }
-  const url = new URL(req.url);
-  const path = url.pathname.split("/").pop();
-  const method = req.method;
-  const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-    global: {
-      headers: {
-        Authorization: req.headers.get("Authorization") ?? ""
+
+const app = new Hono().basePath('/orders');
+
+// Add CORS middleware
+app.use('*', cors({
+  origin: '*',
+  allowHeaders: ['*'],
+  allowMethods: ['*'],
+}));
+
+// Middleware to create Supabase client and get user
+app.use('*', async (c, next) => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "", 
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "", 
+    {
+      global: {
+        headers: {
+          Authorization: c.req.header("Authorization") ?? ""
+        }
       }
     }
-  });
+  );
+  
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  try {
-    if (method === "POST" && path === "checkout") {
-      return withCors(await handleCheckoutOrder(req, supabase, user, authError));
-    }
-    if (method === "POST" && path === "bulk") {
-      return withCors(await handleBulkCreateOrders(req, supabase, user, authError));
-    }
-    if (method === "POST" && path === "filter") {
-      return withCors(await handleListOrders(req, supabase, user, authError));
-    }
-    if (method === "POST") {
-      return withCors(await handleCreateOrder(req, supabase, user, authError));
-    }
-    if (method === "PUT" && path === "status") {
-      return withCors(await handleUpdateOrderStatus(req, supabase, user, authError));
-    }
-    if (method === "PUT") {
-      return withCors(await handleUpdateOrder(req, supabase, user, authError));
-    }
-    if (method === "DELETE" && path === "bulk") {
-      return withCors(await handleBulkDeleteOrders(req, supabase, user, authError));
-    }
-    if (method === "DELETE") {
-      return withCors(await handleDeleteOrder(req, supabase, user, authError));
-    }
-    if (method === "GET") {
-      return withCors(await handleGetOrder(req, supabase, user, authError));
-    }
-    return withCors(new Response("Not Found", {
-      status: 404
-    }));
-  } catch (err) {
-    return withCors(new Response(JSON.stringify({
-      message: err?.message ?? String(err)
-    }), {
-      headers: {
-        "Content-Type": "application/json"
-      },
-      status: 500
-    }));
-  }
+  
+  c.set('supabase', supabase);
+  c.set('user', user);
+  c.set('authError', authError);
+  
+  await next();
 });
+
+// Routes
+app.post('/checkout', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleCheckoutOrder(c.req.raw, supabase, user, authError);
+});
+
+app.post('/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkCreateOrders(c.req.raw, supabase, user, authError);
+});
+
+app.post('/filter', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleListOrders(c.req.raw, supabase, user, authError);
+});
+
+app.post('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleCreateOrder(c.req.raw, supabase, user, authError);
+});
+
+app.put('/status', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleUpdateOrderStatus(c.req.raw, supabase, user, authError);
+});
+
+app.put('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleUpdateOrder(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkDeleteOrders(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleDeleteOrder(c.req.raw, supabase, user, authError);
+});
+
+app.get('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleGetOrder(c.req.raw, supabase, user, authError);
+});
+
+// Error handling
+app.onError((err, c) => {
+  return c.json({
+    message: err?.message ?? String(err)
+  }, 500);
+});
+
+// 404 handler
+app.notFound((c) => {
+  return c.json({ message: 'Not Found' }, 404);
+});
+
+Deno.serve(app.fetch);

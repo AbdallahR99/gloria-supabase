@@ -1,66 +1,97 @@
 // File: functions/states/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { Hono } from 'jsr:@hono/hono';
+import { cors } from 'jsr:@hono/hono/cors';
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { handleGetStates } from "./get.ts";
 import { handleCreateState } from "./create.ts";
 import { handleUpdateState } from "./update.ts";
 import { handleDeleteState } from "./delete.ts";
 import { handleBulkCreateStates, handleBulkDeleteStates } from "./bulk.ts";
-function withCors(response) {
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Headers", "*");
-  headers.set("Access-Control-Allow-Methods", "*");
-  return new Response(response.body, {
-    status: response.status,
-    headers
-  });
-}
-Deno.serve(async (req)=>{
-  if (req.method === "OPTIONS") {
-    return withCors(new Response("ok"));
-  }
-  const url = new URL(req.url);
-  const path = url.pathname.split("/").pop();
-  const method = req.method;
-  const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-    global: {
-      headers: {
-        Authorization: req.headers.get("Authorization") ?? ""
+
+const app = new Hono().basePath('/states');
+
+// Add CORS middleware
+app.use('*', cors({
+  origin: '*',
+  allowHeaders: ['*'],
+  allowMethods: ['*'],
+}));
+
+// Middleware to create Supabase client and get user
+app.use('*', async (c, next) => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "", 
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "", 
+    {
+      global: {
+        headers: {
+          Authorization: c.req.header("Authorization") ?? ""
+        }
       }
     }
-  });
+  );
+  
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  try {
-    if (method === "POST" && path === "bulk") {
-      return withCors(await handleBulkCreateStates(req, supabase, user, authError));
-    }
-    if (method === "DELETE" && path === "bulk") {
-      return withCors(await handleBulkDeleteStates(req, supabase, user, authError));
-    }
-    if (method === "POST") {
-      return withCors(await handleCreateState(req, supabase, user, authError));
-    }
-    if (method === "PUT") {
-      return withCors(await handleUpdateState(req, supabase, user, authError));
-    }
-    if (method === "DELETE") {
-      return withCors(await handleDeleteState(req, supabase, user, authError));
-    }
-    if (method === "GET") {
-      return withCors(await handleGetStates(req, supabase));
-    }
-    return withCors(new Response("Not Found", {
-      status: 404
-    }));
-  } catch (err) {
-    return withCors(new Response(JSON.stringify({
-      message: err?.message ?? String(err)
-    }), {
-      headers: {
-        "Content-Type": "application/json"
-      },
-      status: 500
-    }));
-  }
+  
+  c.set('supabase', supabase);
+  c.set('user', user);
+  c.set('authError', authError);
+  
+  await next();
 });
+
+// Routes
+app.post('/states/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkCreateStates(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/states/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkDeleteStates(c.req.raw, supabase, user, authError);
+});
+
+app.post('/states', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleCreateState(c.req.raw, supabase, user, authError);
+});
+
+app.put('/states', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleUpdateState(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/states', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleDeleteState(c.req.raw, supabase, user, authError);
+});
+
+app.get('/states', async (c) => {
+  const supabase = c.get('supabase');
+  return await handleGetStates(c.req.raw, supabase);
+});
+
+// Error handling
+app.onError((err, c) => {
+  return c.json({
+    message: err?.message ?? String(err)
+  }, 500);
+});
+
+// 404 handler
+app.notFound((c) => {
+  return c.json({ message: 'Not Found' }, 404);
+});
+
+Deno.serve(app.fetch);
