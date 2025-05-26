@@ -284,7 +284,6 @@ policy = "oneshot"
 inspector_port = 8083
 # The Deno major version to use.
 deno_version = 1
-
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
@@ -306,3 +305,37 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+
+[functions.addresses]
+verify_jwt = false
+
+[functions.auth]
+verify_jwt = false
+
+[functions.bundles]
+verify_jwt = false
+
+[functions.cart]
+verify_jwt = false
+
+[functions.categories]
+verify_jwt = false
+
+[functions.favorites]
+verify_jwt = false
+
+[functions.orders]
+verify_jwt = false
+
+[functions.products]
+verify_jwt = false
+
+[functions.reviews]
+verify_jwt = false
+
+[functions.states]
+verify_jwt = false
+
+[functions.users]
+verify_jwt = false
