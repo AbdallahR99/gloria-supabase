@@ -1,4 +1,4 @@
-// File: functions/cart/bulk.ts
+// File: functions/cart/bulk.ts hello
 export async function handleBulkCreateCartItems(req, supabase, user, authError) {
   if (authError || !user) throw new Error("Unauthorized");
   const body = await req.json();
