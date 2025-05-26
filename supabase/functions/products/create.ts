@@ -1,7 +1,24 @@
 // File: functions/products/create.ts
+import { validateSKU, checkSKUExists } from './sku-utils.ts';
+
 export async function handleCreateProduct(req, supabase, user, authError) {
   if (authError || !user) throw new Error("Unauthorized");
+  
   const body = await req.json();
+  
+  // Validate and check SKU if provided
+  if (body.sku) {
+    const validation = validateSKU(body.sku);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+    
+    const skuExists = await checkSKUExists(supabase, body.sku);
+    if (skuExists) {
+      throw new Error(`Product with SKU '${body.sku}' already exists`);
+    }
+  }
+  
   if (body.imageFile) {
     body.image = await uploadImage(supabase, body.imageFile);
   }

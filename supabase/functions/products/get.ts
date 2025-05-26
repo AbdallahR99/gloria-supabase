@@ -52,7 +52,7 @@ export async function handleListProducts(req, supabase, user) {
     const sortBy = url.searchParams.get("sort_by") ?? "created_at";
     const sortOrder = url.searchParams.get("sort_order") === "asc";
     if (name) {
-      query = query.or(`name_en.ilike.%${name}%,name_ar.ilike.%${name}%,keywords.ilike.%${name}%`);
+      query = query.or(`name_en.ilike.%${name}%,name_ar.ilike.%${name}%,keywords.ilike.%${name}%,sku.ilike.%${name}%`);
     }
     if (categoryId) query = query.eq("category_id", categoryId);
     if (minPrice) query = query.gte("price", Number(minPrice));
@@ -109,7 +109,7 @@ export async function handleFilterProducts(req, supabase, user) {
       count: "exact"
     }).eq("is_deleted", false);
     if (body.name) {
-      query = query.or(`name_en.ilike.%${body.name}%,name_ar.ilike.%${body.name}%,keywords.ilike.%${body.name}%`);
+      query = query.or(`name_en.ilike.%${body.name}%,name_ar.ilike.%${body.name}%,keywords.ilike.%${body.name}%,sku.ilike.%${body.name}%`);
     }
     if (body.category_id) query = query.eq("category_id", body.category_id);
     if (body.category_slug) {
@@ -160,6 +160,58 @@ export async function handleFilterProducts(req, supabase, user) {
     return json(result);
   } catch (error) {
     console.error('Error in handleFilterProducts:', error);
+    return json({
+      error: error.message
+    }, 500);
+  }
+}
+export async function handleGetProductBySKU(req, supabase, user) {
+  try {
+    const url = new URL(req.url);
+    const sku = url.searchParams.get("sku");
+    
+    if (!sku) {
+      return json({
+        error: "SKU parameter is required"
+      }, 400);
+    }
+
+    const { data: product, error } = await supabase
+      .from("products")
+      .select("*, category:categories(name_en, name_ar)")
+      .eq("sku", sku)
+      .eq("is_deleted", false)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return json({
+          error: "Product not found"
+        }, 404);
+      }
+      throw error;
+    }
+
+    if (!user) return json(product);
+
+    const size = url.searchParams.get("size");
+    const color = url.searchParams.get("color");
+
+    const [favorites, cartItems] = await Promise.all([
+      supabase.from("favorites").select("product_id").eq("user_id", user.id).eq("product_id", product.id),
+      buildCartQuery(supabase, user.id, [product.id], size, color)
+    ]);
+
+    const cartItem = cartItems.data?.find((c) => c.product_id === product.id);
+
+    return json({
+      ...product,
+      in_favorites: favorites.data?.length > 0,
+      in_cart: !!cartItem,
+      ...(cartItem ? { cart_quantity: cartItem.quantity } : {})
+    });
+  } catch (error) {
+    console.error('Error in handleGetProductBySKU:', error);
     return json({
       error: error.message
     }, 500);

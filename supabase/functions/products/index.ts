@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hono } from 'jsr:@hono/hono';
 import { cors } from 'jsr:@hono/hono/cors';
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { handleGetProduct, handleListProducts, handleFilterProducts } from "./get.ts";
+import { handleGetProduct, handleListProducts, handleFilterProducts, handleGetProductBySKU } from "./get.ts";
 import { handleCreateProduct } from "./create.ts";
 import { handleUpdateProduct } from "./update.ts";
 import { handleDeleteProduct } from "./delete.ts";
@@ -43,6 +43,23 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
+app.get('/sku/:sku', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const sku = c.req.param('sku');
+  
+  // Create a modified request with SKU as query parameter for compatibility
+  const url = new URL(c.req.url);
+  url.searchParams.set('sku', sku);
+  const modifiedRequest = new Request(url.toString(), {
+    method: c.req.method,
+    headers: c.req.raw.headers,
+    body: c.req.raw.body
+  });
+  
+  return await handleGetProductBySKU(modifiedRequest, supabase, user);
+});
+
 app.get('/related', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
@@ -54,7 +71,11 @@ app.get('/', async (c) => {
   const user = c.get('user');
   const url = new URL(c.req.url);
   const slug = url.searchParams.get("slug");
+  const sku = url.searchParams.get("sku");
   
+  if (sku) {
+    return await handleGetProductBySKU(c.req.raw, supabase, user);
+  }
   if (slug) {
     return await handleGetProduct(c.req.raw, supabase, user);
   }

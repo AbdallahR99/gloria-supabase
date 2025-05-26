@@ -1,9 +1,27 @@
 // File: functions/products/update.ts
+import { validateSKU, checkSKUExists } from './sku-utils.ts';
+
 export async function handleUpdateProduct(req, supabase, user, authError) {
   if (authError || !user) throw new Error("Unauthorized");
+  
   const body = await req.json();
   const { id, imageFile, ...updateData } = body;
+  
   if (!id) throw new Error("Missing product ID");
+  
+  // Validate and check SKU if being updated
+  if (updateData.sku) {
+    const validation = validateSKU(updateData.sku);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+    
+    const skuExists = await checkSKUExists(supabase, updateData.sku, id);
+    if (skuExists) {
+      throw new Error(`Product with SKU '${updateData.sku}' already exists`);
+    }
+  }
+  
   if (imageFile) {
     updateData.image = await uploadImage(supabase, imageFile);
   }
