@@ -1,32 +1,69 @@
-// File: functions/products/get.ts
+/**
+ * Product Retrieval Handlers
+ * File: functions/products/get.ts
+ * 
+ * This file contains all product retrieval operations including:
+ * - Single product retrieval by slug
+ * - Product listing with pagination and filtering
+ * - Product filtering with advanced search
+ * - SKU-based product lookup
+ * 
+ * Features:
+ * - Multi-language support (EN/AR)
+ * - User-specific data (favorites, cart status)
+ * - Advanced filtering and search
+ * - Pagination support
+ * - SKU search integration
+ */
+
+/**
+ * Retrieves a single product by slug (English or Arabic)
+ * 
+ * @param {Request} req - HTTP request object with slug parameter
+ * @param {SupabaseClient} supabase - Supabase client instance
+ * @param {User|null} user - Authenticated user (optional)
+ * @returns {Response} JSON response with product data
+ */
 export async function handleGetProduct(req, supabase, user) {
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get("slug");
     const size = url.searchParams.get("size");
     const color = url.searchParams.get("color");
+    
+    // Validate required parameters
     if (!slug) {
       return json({
         error: "Slug parameter is required"
       }, 400);
     }
-    const { data: product, error } = await supabase.from("products").select("*, category:categories(name_en, name_ar)").or(`slug.eq.${slug},slug_ar.eq.${slug}`).single();
+    
+    // Query product by slug (supports both English and Arabic slugs)
+    const { data: product, error } = await supabase
+      .from("products")
+      .select("*, category:categories(name_en, name_ar)")
+      .or(`slug.eq.${slug},slug_ar.eq.${slug}`)
+      .single();
+    
     if (error) throw error;
+    
+    // Return basic product data for unauthenticated users
     if (!user) return json(product);
+    
+    // For authenticated users, fetch additional data (favorites, cart status)
     const [favorites, cartItems] = await Promise.all([
       supabase.from("favorites").select("product_id").eq("user_id", user.id).eq("product_id", product.id),
-      buildCartQuery(supabase, user.id, [
-        product.id
-      ], size, color)
+      buildCartQuery(supabase, user.id, [product.id], size, color)
     ]);
-    const cartItem = cartItems.data?.find((c)=>c.product_id === product.id);
+    
+    const cartItem = cartItems.data?.find((c) => c.product_id === product.id);
+    
+    // Return enhanced product data with user-specific information
     return json({
       ...product,
       in_favorites: favorites.data?.length > 0,
       in_cart: !!cartItem,
-      ...cartItem ? {
-        cart_quantity: cartItem.quantity
-      } : {}
+      ...(cartItem ? { cart_quantity: cartItem.quantity } : {})
     });
   } catch (error) {
     console.error('Error in handleGetProduct:', error);
@@ -35,22 +72,35 @@ export async function handleGetProduct(req, supabase, user) {
     }, 500);
   }
 }
+
+/**
+ * Retrieves a paginated list of products with optional filtering
+ * 
+ * @param {Request} req - HTTP request object with query parameters
+ * @param {SupabaseClient} supabase - Supabase client instance
+ * @param {User|null} user - Authenticated user (optional)
+ * @returns {Response} JSON response with products array
+ */
 export async function handleListProducts(req, supabase, user) {
   try {
     const url = new URL(req.url);
+    
+    // Parse pagination parameters
     const page = Number(url.searchParams.get("page") ?? "1");
     const pageSize = Number(url.searchParams.get("page_size") ?? "99");
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+    
+    // Parse filter parameters
     const size = url.searchParams.get("size");
     const color = url.searchParams.get("color");
-    let query = supabase.from("products").select("*, category:categories(name_en, name_ar)").eq("is_deleted", false);
     const name = url.searchParams.get("name");
     const categoryId = url.searchParams.get("category_id");
     const minPrice = url.searchParams.get("min_price");
     const maxPrice = url.searchParams.get("max_price");
     const sortBy = url.searchParams.get("sort_by") ?? "created_at";
     const sortOrder = url.searchParams.get("sort_order") === "asc";
+    let query = supabase.from("products").select("*, category:categories(name_en, name_ar)").eq("is_deleted", false);
     if (name) {
       query = query.or(`name_en.ilike.%${name}%,name_ar.ilike.%${name}%,keywords.ilike.%${name}%,sku.ilike.%${name}%`);
     }
@@ -231,6 +281,14 @@ async function buildCartQuery(supabase, userId, productIds, size, color) {
   // Execute the query and return the result
   return await query;
 }
+
+/**
+ * Creates a JSON response with proper headers
+ * 
+ * @param {any} data - Data to be serialized as JSON
+ * @param {number} status - HTTP status code (default: 200)
+ * @returns {Response} HTTP Response with JSON content
+ */
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     headers: {
@@ -239,3 +297,103 @@ function json(data, status = 200) {
     status
   });
 }
+
+/**
+ * cURL Examples for Postman Import:
+ * 
+ * Get Product by Slug:
+ */
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?slug=amber-musk-perfume" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?slug=عطر-العنبر-والمسك" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/**
+ * Get Product by SKU:
+ */
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?sku=PERF-AMBER-001" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products/sku/PERF-AMBER-001" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/**
+ * List Products with Pagination:
+ */
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?page=1&page_size=10" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/**
+ * Search Products by Name (includes SKU search):
+ */
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?name=amber&page=1&page_size=20" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/**
+ * Filter Products by Category and Price:
+ */
+
+/*
+curl -X GET "{{supabase_url}}/functions/v1/products?category_id=123e4567-e89b-12d3-a456-426614174000&min_price=20&max_price=100&page=1&page_size=15" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "apikey: {{supabase_anon_key}}"
+*/
+
+/**
+ * Advanced Product Filter (POST):
+ */
+
+/*
+curl -X POST "{{supabase_url}}/functions/v1/products/filter" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "Content-Type: application/json" \
+  -H "apikey: {{supabase_anon_key}}" \
+  -d '{
+    "name": "perfume",
+    "category_id": "123e4567-e89b-12d3-a456-426614174000",
+    "min_price": 25,
+    "max_price": 75,
+    "page": 1,
+    "page_size": 20,
+    "sort_by": "price",
+    "sort_order": "asc"
+  }'
+*/
+
+/*
+curl -X POST "{{supabase_url}}/functions/v1/products/filter" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "Content-Type: application/json" \
+  -H "apikey: {{supabase_anon_key}}" \
+  -d '{
+    "category_slug": "perfumes",
+    "name": "amber",
+    "page": 1,
+    "page_size": 10,
+    "sort_by": "created_at",
+    "sort_order": "desc"
+  }'
+*/
