@@ -339,3 +339,14 @@ verify_jwt = false
 
 [functions.users]
 verify_jwt = false
+
+[functions.invoices]
+enabled = true
+verify_jwt = true
+import_map = "./functions/invoices/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/invoices/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/invoices/*.html" ]
