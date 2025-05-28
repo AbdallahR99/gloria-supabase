@@ -68,12 +68,12 @@ async function uploadImage(supabase, imageFile) {
   const buffer = Uint8Array.from(atob(base64), (c)=>c.charCodeAt(0));
   const ext = mimeType.split("/")[1];
   const filename = `products/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("public").upload(filename, buffer, {
+  const { error } = await supabase.storage.from("images").upload(filename, buffer, {
     contentType: mimeType,
     upsert: true
   });
   if (error) throw error;
-  return supabase.storage.from("public").getPublicUrl(filename).data.publicUrl;
+  return supabase.storage.from("images").getPublicUrl(filename).data.publicUrl;
 }
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
