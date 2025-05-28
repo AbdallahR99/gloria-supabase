@@ -1,4 +1,4 @@
-// File: functions/addresses/index.ts
+// File: functions/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hono } from 'jsr:@hono/hono';
 import { cors } from 'jsr:@hono/hono/cors';
@@ -43,49 +43,49 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
-app.post('/addresses/bulk', async (c) => {
+app.post('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkCreateAddresses(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/addresses/bulk', async (c) => {
+app.delete('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkDeleteAddresses(c.req.raw, supabase, user, authError);
 });
 
-app.post('/addresses/set-default', async (c) => {
+app.post('/set-default', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleSetDefaultAddress(c.req.raw, supabase, user, authError);
 });
 
-app.post('/addresses', async (c) => {
+app.post('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleCreateAddress(c.req.raw, supabase, user, authError);
 });
 
-app.put('/addresses', async (c) => {
+app.put('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleUpdateAddress(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/addresses', async (c) => {
+app.delete('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleDeleteAddress(c.req.raw, supabase, user, authError);
 });
 
-app.get('/addresses', async (c) => {
+app.get('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');

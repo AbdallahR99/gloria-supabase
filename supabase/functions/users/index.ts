@@ -36,7 +36,7 @@ app.use("*", async (c, next) => {
 });
 
 // Routes
-app.get("/users/current", async (c) => {
+app.get("/current", async (c) => {
   const supabase = c.get("supabase");
   const user = c.get("user");
   const authError = c.get("authError");

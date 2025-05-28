@@ -89,14 +89,14 @@ app.post('/filter', async (c) => {
   return await handleFilterProducts(c.req.raw, supabase, user, url);
 });
 
-app.post('/bulk-create', async (c) => {
+app.post('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkCreateProducts(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/bulk-delete', async (c) => {
+app.delete('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');

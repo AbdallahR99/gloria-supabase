@@ -10,6 +10,7 @@ import { handleCreateOrder } from "./create.ts";
 import { handleUpdateOrder } from "./update.ts";
 import { handleDeleteOrder } from "./delete.ts";
 import { handleBulkCreateOrders, handleBulkDeleteOrders } from "./bulk.ts";
+import { handleDirectCheckout } from "./direct-checkout.ts";
 
 const app = new Hono().basePath('/orders');
 
@@ -49,6 +50,13 @@ app.post('/checkout', async (c) => {
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleCheckoutOrder(c.req.raw, supabase, user, authError);
+});
+
+app.post('/direct-checkout', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleDirectCheckout(c.req.raw, supabase, user, authError);
 });
 
 app.post('/bulk', async (c) => {

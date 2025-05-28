@@ -30,46 +30,48 @@ export async function handleGetProduct(req, supabase, user) {
     const slug = url.searchParams.get("slug");
     const size = url.searchParams.get("size");
     const color = url.searchParams.get("color");
-    
-    // Validate required parameters
+
     if (!slug) {
-      return json({
-        error: "Slug parameter is required"
-      }, 400);
+      return json({ error: "Slug parameter is required" }, 400);
     }
-    
-    // Query product by slug (supports both English and Arabic slugs)
-    const { data: product, error } = await supabase
+
+    // Step 1: Get product by slug or slug_ar
+    const { data: product, error: productError } = await supabase
       .from("products")
       .select("*, category:categories(name_en, name_ar)")
       .or(`slug.eq.${slug},slug_ar.eq.${slug}`)
+      .eq("is_deleted", false)
       .single();
-    
-    if (error) throw error;
-    
-    // Return basic product data for unauthenticated users
+
+    if (productError || !product) {
+      return json({ error: "Product not found" }, 404);
+    }
+
+    // Step 2: If user not authenticated, return basic product
     if (!user) return json(product);
-    
-    // For authenticated users, fetch additional data (favorites, cart status)
-    const [favorites, cartItems] = await Promise.all([
-      supabase.from("favorites").select("product_id").eq("user_id", user.id).eq("product_id", product.id),
+
+    // Step 3: Fetch in_cart and in_favorites status
+    const [favoritesResult, cartItemsResult] = await Promise.all([
+      supabase
+        .from("favorites")
+        .select("product_id")
+        .eq("user_id", user.id)
+        .eq("product_id", product.id),
       buildCartQuery(supabase, user.id, [product.id], size, color)
     ]);
-    
-    const cartItem = cartItems.data?.find((c) => c.product_id === product.id);
-    
-    // Return enhanced product data with user-specific information
+
+    const inFavorites = favoritesResult?.data?.some((f) => f.product_id === product.id);
+    const cartItem = cartItemsResult?.data?.find((c) => c.product_id === product.id);
+
     return json({
       ...product,
-      in_favorites: favorites.data?.length > 0,
+      in_favorites: !!inFavorites,
       in_cart: !!cartItem,
       ...(cartItem ? { cart_quantity: cartItem.quantity } : {})
     });
   } catch (error) {
-    console.error('Error in handleGetProduct:', error);
-    return json({
-      error: error.message
-    }, 500);
+    console.error("Error in handleGetProduct:", error);
+    return json({ error: error.message }, 500);
   }
 }
 
