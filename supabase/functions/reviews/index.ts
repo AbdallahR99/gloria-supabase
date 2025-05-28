@@ -19,6 +19,13 @@ app.use('*', cors({
   allowMethods: ['*'],
 }));
 
+app.options('*', (c) => {
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', '*');
+  c.header('Access-Control-Allow-Headers', '*');
+  return c.text('ok', 204);
+});
+
 // Middleware to create Supabase client and get user
 app.use('*', async (c, next) => {
   const supabase = createClient(
@@ -43,57 +50,57 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
-app.post('/reviews/bulk', async (c) => {
+app.post('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkCreateReviews(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/reviews/bulk', async (c) => {
+app.delete('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkDeleteReviews(c.req.raw, supabase, user, authError);
 });
 
-app.get('/reviews/rating-distribution', async (c) => {
+app.get('/rating-distribution', async (c) => {
   const supabase = c.get('supabase');
   return await handleGetRatingDistribution(c.req.raw, supabase);
 });
 
-app.post('/reviews/rating-distribution', async (c) => {
+app.post('/rating-distribution', async (c) => {
   const supabase = c.get('supabase');
   return await handleGetMultipleRatingDistributions(c.req.raw, supabase);
 });
 
-app.post('/reviews/filter', async (c) => {
+app.post('/filter', async (c) => {
   const supabase = c.get('supabase');
   return await handleGetReviews(c.req.raw, supabase, true);
 });
 
-app.post('/reviews', async (c) => {
+app.post('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleCreateReview(c.req.raw, supabase, user, authError);
 });
 
-app.put('/reviews', async (c) => {
+app.put('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleUpdateReview(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/reviews', async (c) => {
+app.delete('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleDeleteReview(c.req.raw, supabase, user, authError);
 });
 
-app.get('/reviews', async (c) => {
+app.get('/', async (c) => {
   const supabase = c.get('supabase');
   return await handleGetReviews(c.req.raw, supabase);
 });

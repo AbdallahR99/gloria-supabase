@@ -1,3 +1,4 @@
+// File: functions/orders/checkout.ts
 export async function handleCheckoutOrder(req, supabase, user, authError) {
   if (authError || !user) throw new Error("Unauthorized");
   const body = await req.json();

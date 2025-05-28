@@ -42,42 +42,42 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
-app.post('/states/bulk', async (c) => {
+app.post('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkCreateStates(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/states/bulk', async (c) => {
+app.delete('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkDeleteStates(c.req.raw, supabase, user, authError);
 });
 
-app.post('/states', async (c) => {
+app.post('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleCreateState(c.req.raw, supabase, user, authError);
 });
 
-app.put('/states', async (c) => {
+app.put('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleUpdateState(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/states', async (c) => {
+app.delete('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleDeleteState(c.req.raw, supabase, user, authError);
 });
 
-app.get('/states', async (c) => {
+app.get('/', async (c) => {
   const supabase = c.get('supabase');
   return await handleGetStates(c.req.raw, supabase);
 });

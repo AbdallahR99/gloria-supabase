@@ -11,8 +11,8 @@ export async function handleBulkCreateAddresses(req, supabase, user, authError) 
       user_id: addr.user_id ?? user.id,
       created_at: now,
       updated_at: now,
-      created_by: user.email,
-      updated_by: user.email,
+      created_by: user.email || user.phone || user.id,
+      updated_by: user.email || user.phone || user.id,
       is_deleted: false
     }));
   const { data, error } = await supabase.from("addresses").insert(items).select();

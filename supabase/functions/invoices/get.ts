@@ -10,6 +10,8 @@
  * Features:
  * - User authentication and authorization
  * - Invoice code and ID lookup
+ * - Products array support (sku, name, quantity, price, old_price)
+ * - Optional subtotal, discount, and delivery_fees fields
  * - Pagination support
  * - Advanced filtering options
  * - Soft delete awareness
@@ -125,8 +127,7 @@ export async function handleListInvoices(req, supabase, user, authError) {
     // Calculate pagination
     const from = (page - 1) * page_size;
     const to = from + page_size - 1;
-    
-    // Build query with comprehensive filtering
+      // Build query with comprehensive filtering
     let query = supabase
       .from("invoices")
       .select(`
@@ -136,7 +137,7 @@ export async function handleListInvoices(req, supabase, user, authError) {
         discount,
         delivery_fees,
         total_price,
-        product_skus,
+        products,
         user_email,
         user_phone,
         user_name,

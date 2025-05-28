@@ -1,4 +1,4 @@
----
+<!-- ---
 applyTo: '**'
 ---
 # About Project
@@ -14,4 +14,4 @@ check about the supabase here: [https://supabase.com/docs/guides](https://supaba
 
 # Supabase DB migrations
 
-check the document herer [https://supabase.com/docs/guides/deployment/database-migrations](https://supabase.com/docs/guides/deployment/database-migrations) for the database migrations and how to use it with the supabase cli
+check the document herer [https://supabase.com/docs/guides/deployment/database-migrations](https://supabase.com/docs/guides/deployment/database-migrations) for the database migrations and how to use it with the supabase cli -->

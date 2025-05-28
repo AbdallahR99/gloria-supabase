@@ -11,7 +11,8 @@
  * - Automatic invoice generation from orders
  * - Invoice code uniqueness validation
  * - Automatic invoice code generation
- * - Product SKU validation
+ * - Products array validation (sku, name, quantity, price, old_price)
+ * - Optional subtotal, discount, and delivery_fees (staff can enter total directly)
  * - Comprehensive audit logging
  */
 
@@ -31,9 +32,8 @@ export async function handleCreateInvoice(req, supabase, user, authError) {
     
     // Parse the request body to get invoice data
     const body = await req.json();
-    
-    // Validate required fields
-    const requiredFields = ['subtotal', 'discount', 'delivery_fees', 'total_price', 'product_skus'];
+      // Validate required fields - only total_price and products are required now
+    const requiredFields = ['total_price', 'products'];
     for (const field of requiredFields) {
       if (body[field] === undefined || body[field] === null) {
         return json({
@@ -42,29 +42,90 @@ export async function handleCreateInvoice(req, supabase, user, authError) {
       }
     }
     
-    // Validate numeric fields
-    const numericFields = ['subtotal', 'discount', 'delivery_fees', 'total_price'];
-    for (const field of numericFields) {
-      if (typeof body[field] !== 'number' || body[field] < 0) {
+    // Validate total_price
+    if (typeof body.total_price !== 'number' || body.total_price < 0) {
+      return json({
+        error: "Invalid total_price: must be a non-negative number"
+      }, 400);
+    }
+    
+    // Validate optional numeric fields (subtotal, discount, delivery_fees)
+    const optionalNumericFields = ['subtotal', 'discount', 'delivery_fees'];
+    for (const field of optionalNumericFields) {
+      if (body[field] !== undefined && body[field] !== null) {
+        if (typeof body[field] !== 'number' || body[field] < 0) {
+          return json({
+            error: `Invalid ${field}: must be a non-negative number`
+          }, 400);
+        }
+      }
+    }    
+    // Validate products array
+    if (!Array.isArray(body.products) || body.products.length === 0) {
+      return json({
+        error: "products must be a non-empty array"
+      }, 400);
+    }
+    
+    // Validate each product in the array
+    for (let i = 0; i < body.products.length; i++) {
+      const product = body.products[i];
+      
+      // Required product fields
+      const requiredProductFields = ['sku', 'name', 'quantity', 'price'];
+      for (const field of requiredProductFields) {
+        if (product[field] === undefined || product[field] === null) {
+          return json({
+            error: `Missing required field '${field}' in product at index ${i}`
+          }, 400);
+        }
+      }
+      
+      // Validate product field types
+      if (typeof product.sku !== 'string' || product.sku.trim().length === 0) {
         return json({
-          error: `Invalid ${field}: must be a non-negative number`
+          error: `Invalid sku in product at index ${i}: must be a non-empty string`
         }, 400);
+      }
+      
+      if (typeof product.name !== 'string' || product.name.trim().length === 0) {
+        return json({
+          error: `Invalid name in product at index ${i}: must be a non-empty string`
+        }, 400);
+      }
+      
+      if (typeof product.quantity !== 'number' || product.quantity <= 0 || !Number.isInteger(product.quantity)) {
+        return json({
+          error: `Invalid quantity in product at index ${i}: must be a positive integer`
+        }, 400);
+      }
+      
+      if (typeof product.price !== 'number' || product.price < 0) {
+        return json({
+          error: `Invalid price in product at index ${i}: must be a non-negative number`
+        }, 400);
+      }
+      
+      // Validate optional old_price field
+      if (product.old_price !== undefined && product.old_price !== null) {
+        if (typeof product.old_price !== 'number' || product.old_price < 0) {
+          return json({
+            error: `Invalid old_price in product at index ${i}: must be a non-negative number`
+          }, 400);
+        }
       }
     }
     
-    // Validate product_skus array
-    if (!Array.isArray(body.product_skus) || body.product_skus.length === 0) {
-      return json({
-        error: "product_skus must be a non-empty array"
-      }, 400);
-    }
-    
-    // Validate total calculation
-    const calculatedTotal = body.subtotal - body.discount + body.delivery_fees;
-    if (Math.abs(calculatedTotal - body.total_price) > 0.01) {
-      return json({
-        error: `Total price mismatch. Expected: ${calculatedTotal.toFixed(2)}, Received: ${body.total_price}`
-      }, 400);
+    // Validate total calculation if subtotal, discount, and delivery_fees are provided
+    if (body.subtotal !== undefined && body.subtotal !== null && 
+        body.discount !== undefined && body.discount !== null && 
+        body.delivery_fees !== undefined && body.delivery_fees !== null) {
+      const calculatedTotal = body.subtotal - body.discount + body.delivery_fees;
+      if (Math.abs(calculatedTotal - body.total_price) > 0.01) {
+        return json({
+          error: `Total price mismatch. Expected: ${calculatedTotal.toFixed(2)}, Received: ${body.total_price}`
+        }, 400);
+      }
     }
     
     // Generate or validate invoice code
@@ -99,16 +160,15 @@ export async function handleCreateInvoice(req, supabase, user, authError) {
       if (codeError) throw codeError;
       invoiceCode = generatedCode;
     }
-    
-    // Prepare invoice data
+      // Prepare invoice data
     const timestamp = new Date().toISOString();
     const invoiceData = {
       invoice_code: invoiceCode,
-      subtotal: body.subtotal,
-      discount: body.discount,
-      delivery_fees: body.delivery_fees,
+      subtotal: body.subtotal || null,
+      discount: body.discount || null,
+      delivery_fees: body.delivery_fees || null,
       total_price: body.total_price,
-      product_skus: body.product_skus,
+      products: body.products,
       user_email: body.user_email || null,
       user_phone: body.user_phone || null,
       user_name: body.user_name || null,

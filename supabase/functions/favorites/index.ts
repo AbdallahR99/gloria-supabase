@@ -1,4 +1,4 @@
-// File: functions/favorites/index.ts
+// File: functions/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hono } from 'jsr:@hono/hono';
 import { cors } from 'jsr:@hono/hono/cors';
@@ -44,56 +44,56 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
-app.get('/favorites', async (c) => {
+app.get('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleGetFavorites(c.req.raw, supabase, user, authError);
 });
 
-app.post('/favorites/toggle', async (c) => {
+app.post('/toggle', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleToggleFavorite(c.req.raw, supabase, user, authError);
 });
 
-app.post('/favorites/manage', async (c) => {
+app.post('/manage', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleManageFavorite(c.req.raw, supabase, user, authError);
 });
 
-app.post('/favorites/bulk', async (c) => {
+app.post('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkCreateFavorites(c.req.raw, supabase, user, authError);
 });
 
-app.post('/favorites', async (c) => {
+app.post('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleCreateFavorite(c.req.raw, supabase, user, authError);
 });
 
-app.put('/favorites', async (c) => {
+app.put('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleUpdateFavorite(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/favorites/bulk', async (c) => {
+app.delete('/bulk', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
   return await handleBulkDeleteFavorites(c.req.raw, supabase, user, authError);
 });
 
-app.delete('/favorites', async (c) => {
+app.delete('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');

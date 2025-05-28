@@ -26,7 +26,7 @@ export async function handleUpdateAddress(req, supabase, user, authError) {
     longitude,
     is_default,
     updated_at: now,
-    updated_by: user.email
+    updated_by: user.email || user.phone || user.id
   }).eq("id", id).eq("user_id", userId).select().single();
   if (error) throw error;
   return json(data);

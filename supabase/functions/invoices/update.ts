@@ -9,6 +9,8 @@
  * Features:
  * - Invoice field updates with validation
  * - Invoice code uniqueness validation
+ * - Products array validation (sku, name, quantity, price, old_price)
+ * - Optional subtotal, discount, and delivery_fees fields
  * - Soft delete awareness
  * - Audit trail with updated_by tracking
  * - Comprehensive field validation
@@ -60,11 +62,10 @@ export async function handleUpdateInvoice(req, supabase, user, authError) {
         error: "Invoice not found"
       }, 404);
     }
-    
-    // Prepare update data - only include fields that can be updated
+      // Prepare update data - only include fields that can be updated
     const updatableFields = [
       'subtotal', 'discount', 'delivery_fees', 'total_price', 
-      'product_skus', 'user_email', 'user_phone', 'user_name', 
+      'products', 'user_email', 'user_phone', 'user_name', 
       'user_address', 'notes', 'user_notes', 'reviews'
     ];
     
@@ -75,22 +76,72 @@ export async function handleUpdateInvoice(req, supabase, user, authError) {
     for (const field of updatableFields) {
       if (body[field] !== undefined) {
         hasUpdates = true;
-        
-        // Special validation for numeric fields
+          // Special validation for numeric fields (make them optional)
         if (['subtotal', 'discount', 'delivery_fees', 'total_price', 'reviews'].includes(field)) {
-          if (body[field] !== null && (typeof body[field] !== 'number' || body[field] < 0)) {
+          if (body[field] !== null && body[field] !== undefined && (typeof body[field] !== 'number' || body[field] < 0)) {
             return json({
               error: `Invalid ${field}: must be a non-negative number or null`
             }, 400);
           }
         }
         
-        // Special validation for product_skus
-        if (field === 'product_skus') {
-          if (body[field] !== null && (!Array.isArray(body[field]) || body[field].length === 0)) {
-            return json({
-              error: "product_skus must be a non-empty array or null"
-            }, 400);
+        // Special validation for products array
+        if (field === 'products') {
+          if (body[field] !== null && body[field] !== undefined) {
+            if (!Array.isArray(body[field]) || body[field].length === 0) {
+              return json({
+                error: "products must be a non-empty array or null"
+              }, 400);
+            }
+            
+            // Validate each product in the array
+            for (let i = 0; i < body[field].length; i++) {
+              const product = body[field][i];
+              
+              // Required product fields
+              const requiredProductFields = ['sku', 'name', 'quantity', 'price'];
+              for (const productField of requiredProductFields) {
+                if (product[productField] === undefined || product[productField] === null) {
+                  return json({
+                    error: `Missing required field '${productField}' in product at index ${i}`
+                  }, 400);
+                }
+              }
+              
+              // Validate product field types
+              if (typeof product.sku !== 'string' || product.sku.trim().length === 0) {
+                return json({
+                  error: `Invalid sku in product at index ${i}: must be a non-empty string`
+                }, 400);
+              }
+              
+              if (typeof product.name !== 'string' || product.name.trim().length === 0) {
+                return json({
+                  error: `Invalid name in product at index ${i}: must be a non-empty string`
+                }, 400);
+              }
+              
+              if (typeof product.quantity !== 'number' || product.quantity <= 0 || !Number.isInteger(product.quantity)) {
+                return json({
+                  error: `Invalid quantity in product at index ${i}: must be a positive integer`
+                }, 400);
+              }
+              
+              if (typeof product.price !== 'number' || product.price < 0) {
+                return json({
+                  error: `Invalid price in product at index ${i}: must be a non-negative number`
+                }, 400);
+              }
+              
+              // Validate optional old_price field
+              if (product.old_price !== undefined && product.old_price !== null) {
+                if (typeof product.old_price !== 'number' || product.old_price < 0) {
+                  return json({
+                    error: `Invalid old_price in product at index ${i}: must be a non-negative number`
+                  }, 400);
+                }
+              }
+            }
           }
         }
         
@@ -130,14 +181,17 @@ export async function handleUpdateInvoice(req, supabase, user, authError) {
         error: "No valid fields to update"
       }, 400);
     }
-    
-    // Validate total calculation if relevant fields are being updated
+      // Validate total calculation if relevant fields are being updated (only if all values are provided)
     const subtotal = updateData.subtotal !== undefined ? updateData.subtotal : existingInvoice.subtotal;
     const discount = updateData.discount !== undefined ? updateData.discount : existingInvoice.discount;
     const deliveryFees = updateData.delivery_fees !== undefined ? updateData.delivery_fees : existingInvoice.delivery_fees;
     const totalPrice = updateData.total_price !== undefined ? updateData.total_price : existingInvoice.total_price;
     
-    if (subtotal !== null && discount !== null && deliveryFees !== null && totalPrice !== null) {
+    // Only validate calculation if all required fields are present and not null
+    if (subtotal !== null && subtotal !== undefined && 
+        discount !== null && discount !== undefined && 
+        deliveryFees !== null && deliveryFees !== undefined && 
+        totalPrice !== null && totalPrice !== undefined) {
       const calculatedTotal = subtotal - discount + deliveryFees;
       if (Math.abs(calculatedTotal - totalPrice) > 0.01) {
         return json({

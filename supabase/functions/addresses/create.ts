@@ -38,8 +38,8 @@ export async function handleCreateAddress(req, supabase, user, authError) {
     is_default: shouldBeDefault,
     created_at: now,
     updated_at: now,
-    created_by: user.id,
-    updated_by: user.id,
+    created_by: user.email || user.phone || user.id,
+    updated_by: user.email || user.phone || user.id,
     is_deleted: false
   }).select().single();
   if (error) throw error;

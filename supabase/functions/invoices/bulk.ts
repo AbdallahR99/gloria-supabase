@@ -9,6 +9,8 @@
  * Features:
  * - Bulk invoice creation with individual validation
  * - Bulk invoice deletion (soft delete)
+ * - Products array validation (sku, name, quantity, price, old_price)
+ * - Optional subtotal, discount, and delivery_fees fields
  * - Transaction-like error handling
  * - Detailed success/failure reporting
  * - Invoice code generation and validation
@@ -65,32 +67,79 @@ export async function handleBulkCreateInvoices(req, supabase, user, authError) {
       const invoiceData = body.invoices[i];
       const invoiceIndex = i + 1;
       
-      try {
-        // Validate required fields
-        const requiredFields = ['subtotal', 'discount', 'delivery_fees', 'total_price', 'product_skus'];
+      try {        // Validate required fields - only total_price and products are required now
+        const requiredFields = ['total_price', 'products'];
         for (const field of requiredFields) {
           if (invoiceData[field] === undefined || invoiceData[field] === null) {
             throw new Error(`Missing required field: ${field}`);
           }
         }
         
-        // Validate numeric fields
-        const numericFields = ['subtotal', 'discount', 'delivery_fees', 'total_price'];
-        for (const field of numericFields) {
-          if (typeof invoiceData[field] !== 'number' || invoiceData[field] < 0) {
-            throw new Error(`Invalid ${field}: must be a non-negative number`);
+        // Validate total_price
+        if (typeof invoiceData.total_price !== 'number' || invoiceData.total_price < 0) {
+          throw new Error("Invalid total_price: must be a non-negative number");
+        }
+        
+        // Validate optional numeric fields (subtotal, discount, delivery_fees)
+        const optionalNumericFields = ['subtotal', 'discount', 'delivery_fees'];
+        for (const field of optionalNumericFields) {
+          if (invoiceData[field] !== undefined && invoiceData[field] !== null) {
+            if (typeof invoiceData[field] !== 'number' || invoiceData[field] < 0) {
+              throw new Error(`Invalid ${field}: must be a non-negative number`);
+            }
           }
         }
         
-        // Validate product_skus array
-        if (!Array.isArray(invoiceData.product_skus) || invoiceData.product_skus.length === 0) {
-          throw new Error("product_skus must be a non-empty array");
+        // Validate products array
+        if (!Array.isArray(invoiceData.products) || invoiceData.products.length === 0) {
+          throw new Error("products must be a non-empty array");
         }
         
-        // Validate total calculation
-        const calculatedTotal = invoiceData.subtotal - invoiceData.discount + invoiceData.delivery_fees;
-        if (Math.abs(calculatedTotal - invoiceData.total_price) > 0.01) {
-          throw new Error(`Total price mismatch. Expected: ${calculatedTotal.toFixed(2)}, Received: ${invoiceData.total_price}`);
+        // Validate each product in the array
+        for (let productIndex = 0; productIndex < invoiceData.products.length; productIndex++) {
+          const product = invoiceData.products[productIndex];
+          
+          // Required product fields
+          const requiredProductFields = ['sku', 'name', 'quantity', 'price'];
+          for (const field of requiredProductFields) {
+            if (product[field] === undefined || product[field] === null) {
+              throw new Error(`Missing required field '${field}' in product at index ${productIndex}`);
+            }
+          }
+          
+          // Validate product field types
+          if (typeof product.sku !== 'string' || product.sku.trim().length === 0) {
+            throw new Error(`Invalid sku in product at index ${productIndex}: must be a non-empty string`);
+          }
+          
+          if (typeof product.name !== 'string' || product.name.trim().length === 0) {
+            throw new Error(`Invalid name in product at index ${productIndex}: must be a non-empty string`);
+          }
+          
+          if (typeof product.quantity !== 'number' || product.quantity <= 0 || !Number.isInteger(product.quantity)) {
+            throw new Error(`Invalid quantity in product at index ${productIndex}: must be a positive integer`);
+          }
+          
+          if (typeof product.price !== 'number' || product.price < 0) {
+            throw new Error(`Invalid price in product at index ${productIndex}: must be a non-negative number`);
+          }
+          
+          // Validate optional old_price field
+          if (product.old_price !== undefined && product.old_price !== null) {
+            if (typeof product.old_price !== 'number' || product.old_price < 0) {
+              throw new Error(`Invalid old_price in product at index ${productIndex}: must be a non-negative number`);
+            }
+          }
+        }
+        
+        // Validate total calculation if subtotal, discount, and delivery_fees are provided
+        if (invoiceData.subtotal !== undefined && invoiceData.subtotal !== null && 
+            invoiceData.discount !== undefined && invoiceData.discount !== null && 
+            invoiceData.delivery_fees !== undefined && invoiceData.delivery_fees !== null) {
+          const calculatedTotal = invoiceData.subtotal - invoiceData.discount + invoiceData.delivery_fees;
+          if (Math.abs(calculatedTotal - invoiceData.total_price) > 0.01) {
+            throw new Error(`Total price mismatch. Expected: ${calculatedTotal.toFixed(2)}, Received: ${invoiceData.total_price}`);
+          }
         }
         
         // Generate or validate invoice code
@@ -121,15 +170,14 @@ export async function handleBulkCreateInvoices(req, supabase, user, authError) {
           if (codeError) throw codeError;
           invoiceCode = generatedCode;
         }
-        
-        // Prepare invoice data
+          // Prepare invoice data
         const finalInvoiceData = {
           invoice_code: invoiceCode,
-          subtotal: invoiceData.subtotal,
-          discount: invoiceData.discount,
-          delivery_fees: invoiceData.delivery_fees,
+          subtotal: invoiceData.subtotal || null,
+          discount: invoiceData.discount || null,
+          delivery_fees: invoiceData.delivery_fees || null,
           total_price: invoiceData.total_price,
-          product_skus: invoiceData.product_skus,
+          products: invoiceData.products,
           user_email: invoiceData.user_email || null,
           user_phone: invoiceData.user_phone || null,
           user_name: invoiceData.user_name || null,
