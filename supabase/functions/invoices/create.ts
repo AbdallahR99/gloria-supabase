@@ -192,6 +192,7 @@ export async function handleCreateInvoice(req, supabase, user, authError) {
     
     return json({
       message: "Invoice created successfully",
+      invoice_code: invoiceCode,
       invoice
     }, 201);
     
