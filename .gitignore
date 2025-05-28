@@ -1,2 +1,6 @@
 angular-app
 scripts
+supabase/dump-data.sql
+storage
+HONO_MIGRATION_SUMMARY.md
+/*.md

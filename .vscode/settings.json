@@ -20,5 +20,11 @@
   ],
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+  },
+  "github.copilot.chat.testGeneration.instructions": [
+    {
+      "file": "./supabase-instructions.md",
+      "language": "markdown",
+    }
+  ]
 }

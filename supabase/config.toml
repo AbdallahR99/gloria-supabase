@@ -339,3 +339,6 @@ verify_jwt = false
 
 [functions.users]
 verify_jwt = false
+
+[functions.invoices]
+verify_jwt = false

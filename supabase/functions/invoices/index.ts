@@ -1,20 +1,15 @@
-// File: functions/cart/index.ts
+// File: functions/invoices/index.ts
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Hono } from 'jsr:@hono/hono';
 import { cors } from 'jsr:@hono/hono/cors';
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { handleGetCart } from "./get.ts";
-import { handleBulkCreateCartItems, handleBulkDeleteCartItems } from "./bulk.ts";
-import { handleUpsertCartItem } from "./upsert.ts";
-import { handleCreateCartItem } from "./create.ts";
-import { handleUpdateCartItem } from "./update.ts";
-import { handleDeleteCartItem } from "./delete.ts";
-import { handleGetCartSummary } from "./summary.ts";
-import { handleCartCount } from "./count.ts";
-import { handleUpdateCartItemQuantity } from "./update-quantity.ts";
-import { handleAddBundleToCart } from "./add-bundle.ts";
+import { handleGetInvoice, handleListInvoices } from "./get.ts";
+import { handleCreateInvoice, handleCreateInvoiceFromOrder } from "./create.ts";
+import { handleUpdateInvoice } from "./update.ts";
+import { handleDeleteInvoice } from "./delete.ts";
+import { handleBulkCreateInvoices, handleBulkDeleteInvoices } from "./bulk.ts";
 
-const app = new Hono().basePath('/cart');
+const app = new Hono().basePath('/invoices');
 
 // Add CORS middleware
 app.use('*', cors({
@@ -47,81 +42,85 @@ app.use('*', async (c, next) => {
 });
 
 // Routes
-app.post('/upsert', async (c) => {
+app.get('/code/:code', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
-  return await handleUpsertCartItem(c.req.raw, supabase, user, authError);
-});
-
-app.post('/bulk', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleBulkCreateCartItems(c.req.raw, supabase, user, authError);
-});
-
-app.post('/bundle', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleAddBundleToCart(c.req.raw, supabase, user, authError);
-});
-
-app.put('/update-quantity', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleUpdateCartItemQuantity(c.req.raw, supabase, user, authError);
-});
-
-app.post('/', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleCreateCartItem(c.req.raw, supabase, user, authError);
-});
-
-app.put('/', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleUpdateCartItem(c.req.raw, supabase, user, authError);
-});
-
-app.delete('/bulk', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleBulkDeleteCartItems(c.req.raw, supabase, user, authError);
-});
-
-app.delete('/', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleDeleteCartItem(c.req.raw, supabase, user, authError);
-});
-
-app.get('/count', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleCartCount(c.req.raw, supabase, user, authError);
-});
-
-app.get('/summary', async (c) => {
-  const supabase = c.get('supabase');
-  const user = c.get('user');
-  const authError = c.get('authError');
-  return await handleGetCartSummary(c.req.raw, supabase, user, authError);
+  const code = c.req.param('code');
+  
+  // Create a modified request with code as query parameter for compatibility
+  const url = new URL(c.req.url);
+  url.searchParams.set('invoice_code', code);
+  const modifiedRequest = new Request(url.toString(), {
+    method: c.req.method,
+    headers: c.req.raw.headers,
+    body: c.req.raw.body
+  });
+  
+  return await handleGetInvoice(modifiedRequest, supabase, user, authError);
 });
 
 app.get('/', async (c) => {
   const supabase = c.get('supabase');
   const user = c.get('user');
   const authError = c.get('authError');
-  return await handleGetCart(c.req.raw, supabase, user, authError);
+  const url = new URL(c.req.url);
+  const invoiceId = url.searchParams.get("invoice_id");
+  const invoiceCode = url.searchParams.get("invoice_code");
+  
+  if (invoiceId || invoiceCode) {
+    return await handleGetInvoice(c.req.raw, supabase, user, authError);
+  }
+  return await handleListInvoices(c.req.raw, supabase, user, authError);
+});
+
+app.post('/filter', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleListInvoices(c.req.raw, supabase, user, authError);
+});
+
+app.post('/from-order', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleCreateInvoiceFromOrder(c.req.raw, supabase, user, authError);
+});
+
+app.post('/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkCreateInvoices(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/bulk', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleBulkDeleteInvoices(c.req.raw, supabase, user, authError);
+});
+
+app.post('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleCreateInvoice(c.req.raw, supabase, user, authError);
+});
+
+app.put('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleUpdateInvoice(c.req.raw, supabase, user, authError);
+});
+
+app.delete('/', async (c) => {
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  const authError = c.get('authError');
+  return await handleDeleteInvoice(c.req.raw, supabase, user, authError);
 });
 
 // Error handling
