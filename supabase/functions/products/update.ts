@@ -81,14 +81,14 @@ async function uploadImage(supabase, imageFile) {
   const filename = `products/${crypto.randomUUID()}.${ext}`;
   
   // Upload to Supabase storage
-  const { error } = await supabase.storage.from("public").upload(filename, buffer, {
+  const { error } = await supabase.storage.from("images").upload(filename, buffer, {
     contentType: mimeType,
     upsert: true
   });
   if (error) throw error;
   
   // Return public URL
-  return supabase.storage.from("public").getPublicUrl(filename).data.publicUrl;
+  return supabase.storage.from("images").getPublicUrl(filename).data.publicUrl;
 }
 
 /**

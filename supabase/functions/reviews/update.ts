@@ -1,4 +1,6 @@
 // File: functions/reviews/update.ts
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
 export async function handleUpdateReview(req, supabase, user, authError) {
   if (authError || !user) throw new Error("Unauthorized");
   const body = await req.json();
@@ -8,13 +10,19 @@ export async function handleUpdateReview(req, supabase, user, authError) {
   }, 400);
   let uploadedImage;
   if (imageFile) {
+     const adminSupabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
     const matches = imageFile.match(/^data:(image\/[^;]+);base64,(.+)$/);
     const mimeType = matches?.[1] ?? "image/png";
     const base64 = matches?.[2] ?? imageFile;
     const ext = mimeType.split("/")[1];
     const buffer = Uint8Array.from(atob(base64), (c)=>c.charCodeAt(0));
-    const filename = `reviews/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("public").upload(filename, buffer, {
+    const filename = `reviews/review_${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await adminSupabase.storage.from("images").upload(filename, buffer, {
       contentType: mimeType,
       upsert: true
     });
