@@ -342,3 +342,6 @@ verify_jwt = false
 
 [functions.invoices]
 verify_jwt = false
+
+[functions.vouchers]
+verify_jwt = false
